@@ -1,0 +1,22 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: uv pip install -r requirements_test.txt
+      - name: Lint
+        run: uvx ruff check . && uvx ruff format --check .
+      - name: Run tests
+        run: python -m pytest --cov=custom_components.lunatone_wlan --cov-report=term-missing

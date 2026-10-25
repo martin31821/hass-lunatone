@@ -1,0 +1,149 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Enter the address of your Lunatone DALI WLAN gateway.",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "IP address or host name of the gateway."
+        }
+      },
+      "reconfigure": {
+        "description": "Change the address of the gateway.",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "IP address or host name of the gateway."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "reconfigure_successful": "Re-configuration was successful",
+      "wrong_gateway": "This address belongs to a different gateway."
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "short_press": "\"{subtype}\" short press",
+      "double_press": "\"{subtype}\" double press",
+      "long_press_start": "\"{subtype}\" long press started",
+      "long_press_repeat": "\"{subtype}\" long press repeat",
+      "long_press_stop": "\"{subtype}\" long press released",
+      "pressed": "\"{subtype}\" pressed",
+      "released": "\"{subtype}\" released"
+    },
+    "trigger_subtype": {
+      "button_0": "Button 0",
+      "button_1": "Button 1",
+      "button_2": "Button 2",
+      "button_3": "Button 3",
+      "button_4": "Button 4",
+      "button_5": "Button 5",
+      "button_6": "Button 6",
+      "button_7": "Button 7"
+    }
+  },
+  "entity": {
+    "button": {
+      "scan_bus": {
+        "name": "Scan bus"
+      }
+    },
+    "event": {
+      "button": {
+        "name": "Button {instance}",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "short_press": "Short press",
+              "double_press": "Double press",
+              "long_press_start": "Long press started",
+              "long_press_stop": "Long press released",
+              "pressed": "Pressed",
+              "released": "Released",
+              "button_stuck": "Stuck",
+              "button_free": "No longer stuck"
+            }
+          }
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "entry_not_loaded": {
+      "message": "Gateway {entry_id} is not loaded."
+    },
+    "no_gateway": {
+      "message": "No Lunatone DALI WLAN gateway is loaded."
+    },
+    "multiple_gateways": {
+      "message": "More than one gateway is loaded, select one."
+    },
+    "send_failed": {
+      "message": "Sending to the gateway failed: {error}"
+    }
+  },
+  "services": {
+    "go_to_scene": {
+      "name": "Go to scene",
+      "description": "Recall a DALI scene on all lights, a group or one address. Without group and address the scene is sent as broadcast.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "Only needed with more than one gateway."
+        },
+        "scene": {
+          "name": "Scene",
+          "description": "Scene number 0-15."
+        },
+        "group": {
+          "name": "Group",
+          "description": "DALI group 0-15."
+        },
+        "address": {
+          "name": "Address",
+          "description": "Short address 0-63 of a control gear."
+        }
+      }
+    },
+    "send_frame": {
+      "name": "Send frame",
+      "description": "Send a raw DALI forward frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "Only needed with more than one gateway."
+        },
+        "data": {
+          "name": "Data",
+          "description": "Frame as hex string (8D10) or list of bytes, 2 bytes for 16-bit and 3 bytes for 24-bit frames."
+        },
+        "send_twice": {
+          "name": "Send twice",
+          "description": "Send the frame twice, required by configuration commands."
+        },
+        "wait_for_answer": {
+          "name": "Wait for answer",
+          "description": "Wait for a backward frame and return it."
+        }
+      }
+    },
+    "scan_bus": {
+      "name": "Scan bus",
+      "description": "Search the bus for DALI-2 control devices and their input instances.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Gateway",
+          "description": "Only needed with more than one gateway."
+        }
+      }
+    }
+  }
+}

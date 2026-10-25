@@ -1,0 +1,52 @@
+go_to_scene:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunatone_wlan
+    scene:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 15
+          mode: box
+    group:
+      selector:
+        number:
+          min: 0
+          max: 15
+          mode: box
+    address:
+      selector:
+        number:
+          min: 0
+          max: 63
+          mode: box
+
+send_frame:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunatone_wlan
+    data:
+      required: true
+      example: "8D10"
+      selector:
+        text:
+    send_twice:
+      default: false
+      selector:
+        boolean:
+    wait_for_answer:
+      default: false
+      selector:
+        boolean:
+
+scan_bus:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunatone_wlan
