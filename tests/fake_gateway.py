@@ -51,6 +51,22 @@ class FakeInstance:
     instance_type: int = 1
     enabled: bool = True
     event_scheme: int = 2
+    resolution: int = 1
+    value: int = 0
+
+    def value_bytes(self) -> list[int]:
+        """Return the input value MSB aligned, as QUERY INPUT VALUE (LATCH) do."""
+        count = max(1, (self.resolution + 7) // 8)
+        raw = self.value << (count * 8 - self.resolution)
+        return list(raw.to_bytes(count, "big"))
+
+
+def cs_mini(lux: int = 40, occupancy: int = 0) -> list[FakeInstance]:
+    """Return the instances of a Lunatone DALI-2 CS Mini."""
+    return [
+        FakeInstance(instance_type=3, resolution=2, value=occupancy),
+        FakeInstance(instance_type=4, resolution=11, value=lux),
+    ]
 
 
 @dataclass
@@ -66,6 +82,7 @@ class FakeGateway:
     pongs: list[bytes] = field(default_factory=list)
     host: str = ""
     _runner: web.AppRunner | None = None
+    _latch: list[int] = field(default_factory=list)
     _counter: int = 0
 
     @property
@@ -140,8 +157,14 @@ class FakeGateway:
         if data[1] >= len(instances):
             return None
         instance = instances[data[1]]
+        if data[2] == 0x8C:
+            first, *self._latch = instance.value_bytes()
+            return first
+        if data[2] == 0x8D:
+            return self._latch.pop(0) if self._latch else None
         return {
             0x80: instance.instance_type,
+            0x81: instance.resolution,
             0x86: 0xFF if instance.enabled else None,
             0x8B: instance.event_scheme,
         }.get(data[2])

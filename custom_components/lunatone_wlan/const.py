@@ -5,6 +5,8 @@ MANUFACTURER = "Lunatone"
 
 EVENT_MONITOR = f"{DOMAIN}_monitor"
 EVENT_BUTTON = f"{DOMAIN}_button"
+EVENT_OCCUPANCY = f"{DOMAIN}_occupancy"
+EVENT_ILLUMINANCE = f"{DOMAIN}_illuminance"
 
 ATTR_ADDRESS = "address"
 ATTR_ANSWER = "answer"

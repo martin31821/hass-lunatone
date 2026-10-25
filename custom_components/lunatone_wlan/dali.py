@@ -1,4 +1,4 @@
-"""DALI frame helpers (IEC 62386-102, -103 and -301)."""
+"""DALI frame helpers (IEC 62386-102, -103, -301, -303 and -304)."""
 
 from __future__ import annotations
 
@@ -18,12 +18,26 @@ QUERY_NUMBER_OF_INSTANCES = 0x35
 
 # IEC 62386-103 instance commands
 QUERY_INSTANCE_TYPE = 0x80
+QUERY_RESOLUTION = 0x81
 QUERY_INSTANCE_ENABLED = 0x86
 QUERY_EVENT_SCHEME = 0x8B
+QUERY_INPUT_VALUE = 0x8C
+QUERY_INPUT_VALUE_LATCH = 0x8D
 
 YES = 0xFF
 
 INSTANCE_TYPE_PUSH_BUTTON = 1
+INSTANCE_TYPE_OCCUPANCY = 3
+INSTANCE_TYPE_LIGHT = 4
+
+INSTANCE_TYPE_NAMES = {
+    INSTANCE_TYPE_PUSH_BUTTON: "Push button",
+    2: "Absolute input",
+    INSTANCE_TYPE_OCCUPANCY: "Occupancy sensor",
+    INSTANCE_TYPE_LIGHT: "Light sensor",
+}
+
+EVENT_INFO_BITS = 10
 
 MAX_SHORT_ADDRESS = 63
 MAX_GROUP = 15
@@ -56,6 +70,58 @@ BUTTON_EVENTS: dict[int, str] = {
     0x0E: "button_free",
     0x0F: "button_stuck",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class OccupancyState:
+    """State reported by an IEC 62386-303 occupancy sensor."""
+
+    occupied: bool
+    movement: bool
+    repeat: bool = False
+
+
+def parse_occupancy_info(info: int) -> OccupancyState | None:
+    """Decode occupancy event information.
+
+    Bit 0 is movement, bit 1 occupied, bit 2 a repeated report and bit 3 the
+    sensor type (movement or presence sensor).
+    """
+    if info & ~0x0F:
+        return None
+    return OccupancyState(
+        occupied=bool(info & 0x02), movement=bool(info & 0x01), repeat=bool(info & 0x04)
+    )
+
+
+def occupancy_from_input_value(value: int) -> OccupancyState:
+    """Decode the input value of an occupancy sensor.
+
+    The two most significant bits are 00 vacant, 10 occupied and 11 movement.
+    """
+    return OccupancyState(occupied=bool(value & 0x80), movement=bool(value & 0x40))
+
+
+def scale_light_info(info: int, resolution: int | None) -> int:
+    """Return a 10-bit light event at the resolution of the input value."""
+    if resolution is None or resolution == EVENT_INFO_BITS:
+        return info
+    if resolution > EVENT_INFO_BITS:
+        return info << (resolution - EVENT_INFO_BITS)
+    return info >> (EVENT_INFO_BITS - resolution)
+
+
+def input_value(data: Sequence[int], resolution: int) -> int:
+    """Combine the bytes of QUERY INPUT VALUE (LATCH), MSB first."""
+    value = 0
+    for byte in data:
+        value = (value << 8) | byte
+    return value >> (len(data) * 8 - resolution)
+
+
+def input_value_bytes(resolution: int) -> int:
+    """Return how many bytes an input value of this resolution has."""
+    return max(1, (resolution + 7) // 8)
 
 
 def short_address(address: int) -> int:

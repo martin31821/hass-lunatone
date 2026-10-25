@@ -11,14 +11,19 @@ integration.
   Lunatone MC2 show up as devices with one event entity per button and device
   triggers for short press, double press, long press start/repeat/stop,
   pressed and released.
+- **Occupancy and light sensors.** DALI-2 occupancy sensors (IEC 62386-303)
+  get *Occupancy* and *Movement* binary sensors, light sensors (IEC 62386-304)
+  an *Illuminance* sensor in lux. Both come with the standard Home Assistant
+  device triggers and conditions. Tested with the Lunatone DALI-2 CS Mini.
 - **Scenes as a service.** `lunatone_wlan.go_to_scene` recalls a scene on all
   lights, a group or a single address.
 - **Bus monitor.** Every frame on the bus is fired as a `lunatone_wlan_monitor`
   event, including the scene commands buttons send directly to the lights.
 - **Raw frames.** `lunatone_wlan.send_frame` sends any 16 or 24-bit frame and
   returns the answer.
-- **Bus scan.** Control devices are found on first setup. Use the *Scan bus*
-  button or `lunatone_wlan.scan_bus` after adding devices.
+- **Bus scan.** Control devices are found on every start. Use the *Scan bus*
+  button or `lunatone_wlan.scan_bus` after adding or re-addressing devices.
+  When an address now holds a different device, its entities are replaced.
 
 Buttons keep working when Home Assistant is down if the MC2 sends scene
 commands to the lights itself. Home Assistant only sees the events, so you can
@@ -113,6 +118,15 @@ triggers:
 | `instance` | `3` |
 | `type` | `short_press`, `double_press`, `long_press_start`, `long_press_repeat`, `long_press_stop`, `pressed`, `released`, `button_stuck`, `button_free` |
 | `scheme` | `device_instance` |
+
+`lunatone_wlan_occupancy`: `device_id`, `address`, `instance`, `occupied`,
+`movement` and `repeat` (periodic report without change).
+
+`lunatone_wlan_illuminance`: `device_id`, `address`, `instance` and
+`illuminance`.
+
+IEC 62386-304 light values are relative. They are reported at the sensor's
+resolution, which for the Lunatone CS Mini (11 bit, 0–2047) is 1 lx per step.
 
 `lunatone_wlan_monitor` contains `bits`, `data` (list of bytes), `hex` and a
 decoded description: `frame` (`command`, `arc_power`, `special_command`,

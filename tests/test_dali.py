@@ -12,12 +12,18 @@ from custom_components.lunatone_wlan.dali import (
     BUTTON_EVENTS,
     EventScheme,
     InputEvent,
+    OccupancyState,
     describe_frame,
     device_command,
     go_to_scene,
     group_address,
+    input_value,
+    input_value_bytes,
     instance_command,
+    occupancy_from_input_value,
     parse_input_event,
+    parse_occupancy_info,
+    scale_light_info,
     short_address,
 )
 
@@ -198,3 +204,69 @@ def test_button_event_codes() -> None:
 def test_describe_frame(bits: int, data: list[int], description: dict) -> None:
     """Monitored frames get a readable description."""
     assert describe_frame(bits, data) == description
+
+
+@pytest.mark.parametrize(
+    ("info", "state"),
+    [
+        # Captured from a Lunatone CS Mini (movement sensor, bit 3 set)
+        (0b1011, OccupancyState(occupied=True, movement=True)),
+        (0b1010, OccupancyState(occupied=True, movement=False)),
+        (0b1000, OccupancyState(occupied=False, movement=False)),
+        (0b1111, OccupancyState(occupied=True, movement=True, repeat=True)),
+        (0b0010, OccupancyState(occupied=True, movement=False)),
+    ],
+)
+def test_parse_occupancy_info(info: int, state: OccupancyState) -> None:
+    """Occupancy events decode into occupied, movement and repeat."""
+    assert parse_occupancy_info(info) == state
+
+
+def test_parse_occupancy_info_invalid() -> None:
+    """Only the low 4 bits are used by occupancy events."""
+    assert parse_occupancy_info(0x10) is None
+
+
+@pytest.mark.parametrize(
+    ("value", "state"),
+    [
+        (0xFF, OccupancyState(occupied=True, movement=True)),
+        (0xAA, OccupancyState(occupied=True, movement=False)),
+        (0x00, OccupancyState(occupied=False, movement=False)),
+    ],
+)
+def test_occupancy_from_input_value(value: int, state: OccupancyState) -> None:
+    """Input values captured from the CS Mini decode like events."""
+    assert occupancy_from_input_value(value) == state
+
+
+@pytest.mark.parametrize(
+    ("info", "resolution", "value"),
+    [
+        (19, 11, 38),  # CS Mini: 10-bit event, 2 lx per step
+        (1023, 11, 2046),
+        (19, 10, 19),
+        (100, 8, 25),
+        (19, None, 19),
+    ],
+)
+def test_scale_light_info(info: int, resolution: int | None, value: int) -> None:
+    """Light events are scaled to the resolution of the input value."""
+    assert scale_light_info(info, resolution) == value
+
+
+@pytest.mark.parametrize(
+    ("data", "resolution", "value"),
+    [
+        # QUERY INPUT VALUE and LATCH answers captured from the CS Mini
+        ([5, 0], 11, 40),
+        ([4, 224], 11, 39),
+        ([26, 227], 11, 215),
+        ([0, 32], 11, 1),
+        ([0xFF], 2, 3),
+    ],
+)
+def test_input_value(data: list[int], resolution: int, value: int) -> None:
+    """Input value bytes are combined MSB first."""
+    assert input_value(data, resolution) == value
+    assert input_value_bytes(resolution) == len(data)

@@ -12,7 +12,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
-from .fake_gateway import FakeGateway, FakeInstance
+from .fake_gateway import FakeGateway, FakeInstance, cs_mini
 
 SERIAL = "123456789012"
 
@@ -41,6 +41,7 @@ async def fake_gateway() -> AsyncGenerator[FakeGateway]:
                 FakeInstance(enabled=False),
             ],
             3: [FakeInstance(), FakeInstance(enabled=False, event_scheme=0)],
+            5: cs_mini(),
         }
     )
     await gateway.start()

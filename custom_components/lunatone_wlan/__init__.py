@@ -14,7 +14,7 @@ from .gateway import GatewayConnectionError, LunatoneGateway
 from .hub import LunatoneConfigEntry, LunatoneHub
 from .services import async_setup_services
 
-PLATFORMS = [Platform.BUTTON, Platform.EVENT]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.EVENT, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -48,10 +48,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: LunatoneConfigEntry) -> 
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    if not hub.has_devices:
-        hub.initial_scan = entry.async_create_background_task(
-            hass, hub.async_initial_scan(), f"{DOMAIN} {host} bus scan"
-        )
+    # Scan on every start, devices may have been re-addressed
+    hub.initial_scan = entry.async_create_background_task(
+        hass, hub.async_initial_scan(), f"{DOMAIN} {host} bus scan"
+    )
     return True
 
 

@@ -150,11 +150,11 @@ async def test_scan_bus_service(
         DOMAIN, "scan_bus", {}, blocking=True, return_response=True
     )
     assert response["devices"]["A3"] == {
-        "0": {"instance_type": 1, "enabled": True, "event_scheme": 2},
-        "1": {"instance_type": 1, "enabled": False, "event_scheme": 0},
+        "0": {"instance_type": 1, "enabled": True, "event_scheme": 2, "resolution": 1},
+        "1": {"instance_type": 1, "enabled": False, "event_scheme": 0, "resolution": 1},
     }
     assert response["devices"]["A9"] == {
-        "0": {"instance_type": 3, "enabled": True, "event_scheme": 2}
+        "0": {"instance_type": 3, "enabled": True, "event_scheme": 2, "resolution": 1}
     }
     await hass.async_block_till_done()
     # Only push buttons get event entities

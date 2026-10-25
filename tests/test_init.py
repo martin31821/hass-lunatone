@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_capture_events,
@@ -15,7 +17,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
 
 from .conftest import SERIAL, get_device
-from .fake_gateway import FakeGateway
+from .fake_gateway import FakeGateway, FakeInstance
 
 
 async def _push(
@@ -25,6 +27,13 @@ async def _push(
     # Round trip a frame so the pushed one has been read
     await config_hub(hass).gateway.send_frame([0xFF, 0xFE, 0x00])
     await hass.async_block_till_done()
+
+
+async def _wait_for(hass: HomeAssistant, condition, timeout: float = 2) -> None:
+    async with asyncio.timeout(timeout):
+        while not condition():
+            await asyncio.sleep(0.01)
+            await hass.async_block_till_done()
 
 
 def config_hub(hass: HomeAssistant):
@@ -65,7 +74,7 @@ async def test_setup_scans_bus(
                 entity_registry, setup_integration.entry_id
             )
         )
-        == 15
+        == 18
     )
 
 
@@ -79,17 +88,18 @@ async def test_setup_not_ready(hass: HomeAssistant) -> None:
     assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
-async def test_restart_uses_stored_devices(
+async def test_restart_restores_devices(
     hass: HomeAssistant, fake_gateway: FakeGateway, setup_integration: MockConfigEntry
 ) -> None:
-    """Known devices are restored without scanning again."""
+    """Known devices are restored before the bus is scanned again."""
     assert await hass.config_entries.async_unload(setup_integration.entry_id)
-    fake_gateway.received.clear()
+    fake_gateway.respond = False
     assert await hass.config_entries.async_setup(setup_integration.entry_id)
     await hass.async_block_till_done()
-    assert setup_integration.runtime_data.initial_scan is None
-    assert fake_gateway.frames == []
     assert hass.states.get("event.dali_input_device_a0_button_3") is not None
+    assert hass.states.get("binary_sensor.dali_input_device_a5_occupancy") is not None
+    fake_gateway.respond = True
+    await setup_integration.runtime_data.initial_scan
 
 
 async def test_unload(hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
@@ -172,9 +182,13 @@ async def test_unknown_device_is_added(
     setup_integration: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
 ) -> None:
-    """Events from unknown devices add the device and its button."""
+    """Events from unknown devices are identified and added."""
+    fake_gateway.devices[10] = [FakeInstance(), FakeInstance()]
+    buttons = async_capture_events(hass, EVENT_BUTTON)
     await _push(hass, fake_gateway, [0x14, 0x84, 0x02])
-    await hass.async_block_till_done()
+    await _wait_for(hass, lambda: buttons)
+    assert buttons[0].data["address"] == 10
+    assert buttons[0].data["type"] == "short_press"
     assert get_device(device_registry, f"{SERIAL}_cd10")
     state = hass.states.get("event.dali_input_device_a10_button_1")
     assert state is not None

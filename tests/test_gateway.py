@@ -113,7 +113,7 @@ async def test_concurrent_requests_are_serialized(
             for address in range(6)
         )
     )
-    assert answers == [4, 4, 4, 2, None, None]
+    assert answers == [4, 4, 4, 2, None, 2]
 
 
 async def test_rejected_frame(

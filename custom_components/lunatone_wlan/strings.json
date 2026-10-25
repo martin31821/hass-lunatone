@@ -51,6 +51,20 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "occupancy": {
+        "name": "Occupancy"
+      },
+      "occupancy_numbered": {
+        "name": "Occupancy {instance}"
+      },
+      "movement": {
+        "name": "Movement"
+      },
+      "movement_numbered": {
+        "name": "Movement {instance}"
+      }
+    },
     "button": {
       "scan_bus": {
         "name": "Scan bus"
@@ -73,6 +87,14 @@
             }
           }
         }
+      }
+    },
+    "sensor": {
+      "illuminance": {
+        "name": "Illuminance"
+      },
+      "illuminance_numbered": {
+        "name": "Illuminance {instance}"
       }
     }
   },
