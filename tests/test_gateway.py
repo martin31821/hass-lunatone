@@ -203,3 +203,52 @@ async def test_pending_request_fails_on_disconnect(
     await fake_gateway.disconnect_clients()
     with pytest.raises(GatewayConnectionError):
         await request
+
+
+async def test_answers_gateway_ping(
+    client: LunatoneGateway, fake_gateway: FakeGateway
+) -> None:
+    """Pings of the gateway are answered."""
+    fake_gateway.answer_pings = False
+    await fake_gateway.disconnect_clients()
+    await _wait_for(lambda: fake_gateway.clients)
+    await fake_gateway.ping_clients(b"5s")
+    await _wait_for(lambda: fake_gateway.pongs)
+    assert fake_gateway.pongs == [b"5s"]
+
+
+async def test_idle_connection_stays_up(
+    session: aiohttp.ClientSession,
+    fake_gateway: FakeGateway,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A quiet gateway that answers pings keeps the connection."""
+    monkeypatch.setattr(gateway_module, "IDLE_TIMEOUT", 0.05)
+    client = LunatoneGateway(session, fake_gateway.host)
+    states: list[bool] = []
+    client.add_connection_listener(states.append)
+    await client.connect()
+    task = asyncio.create_task(client.run())
+    await asyncio.sleep(0.4)
+    assert states == [True]
+    await client.close()
+    await task
+
+
+async def test_unresponsive_gateway_reconnects(
+    session: aiohttp.ClientSession,
+    fake_gateway: FakeGateway,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The connection is dropped when the gateway stops answering pings."""
+    monkeypatch.setattr(gateway_module, "IDLE_TIMEOUT", 0.05)
+    monkeypatch.setattr(gateway_module, "RECONNECT_DELAYS", (0.01,))
+    fake_gateway.answer_pings = False
+    client = LunatoneGateway(session, fake_gateway.host)
+    states: list[bool] = []
+    client.add_connection_listener(states.append)
+    await client.connect()
+    task = asyncio.create_task(client.run())
+    await _wait_for(lambda: states[:3] == [True, False, True])
+    await client.close()
+    await task

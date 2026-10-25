@@ -14,14 +14,12 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
 from homeassistant.setup import async_setup_component
 
-from .conftest import SERIAL
+from .conftest import SERIAL, get_device
 from .fake_gateway import FakeGateway
 
 
 def _device(device_registry: dr.DeviceRegistry, address: int) -> dr.DeviceEntry:
-    device = device_registry.async_get_device(
-        identifiers={(DOMAIN, f"{SERIAL}_cd{address}")}
-    )
+    device = get_device(device_registry, f"{SERIAL}_cd{address}")
     assert device is not None
     return device
 
@@ -50,7 +48,7 @@ async def test_no_triggers_for_gateway(
     device_registry: dr.DeviceRegistry,
 ) -> None:
     """The gateway device has no button triggers."""
-    gateway = device_registry.async_get_device(identifiers={(DOMAIN, SERIAL)})
+    gateway = get_device(device_registry, SERIAL)
     triggers = await async_get_device_automations(
         hass, DeviceAutomationType.TRIGGER, gateway.id
     )

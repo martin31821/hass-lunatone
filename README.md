@@ -40,6 +40,12 @@ folder and restart Home Assistant.
 Then add the integration under *Settings → Devices & services* and enter the
 gateway's IP address.
 
+## Connection limit
+
+The gateway accepts at most three websocket clients at a time. The Lunatone
+software and the gateway's web page each use one. Close them when you are
+done, otherwise Home Assistant may be refused after a reconnect.
+
 ## Configuring the MC2 inputs
 
 Home Assistant can only tell inputs apart if their events carry the device
@@ -129,7 +135,7 @@ Reverse engineered from the Lunatone Windows software:
 ## Development
 
 ```sh
-uv venv --python 3.13 && uv pip install -r requirements_test.txt
+uv venv --python 3.14 && uv pip install -r requirements_test.txt
 .venv/bin/pytest
 ```
 

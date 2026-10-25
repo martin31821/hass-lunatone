@@ -96,6 +96,7 @@ class LunatoneHub:
         )
         self.initial_scan: asyncio.Task[Any] | None = None
         self._device_ids: dict[int, str] = {}
+        self._gateway_device_id: str | None = None
         self._unsubscribe: list[Any] = []
 
     def signal_input_event(self, address: int, instance: int) -> str:
@@ -127,13 +128,9 @@ class LunatoneHub:
         )
 
     def control_device_info(self, address: int) -> DeviceInfo:
-        """Return device info for a control device."""
+        """Return device info linking entities to a registered control device."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._control_device_identifier(address))},
-            manufacturer="DALI-2",
-            model="Input device",
-            name=f"DALI input device A{address}",
-            via_device=(DOMAIN, self.unique_id),
+            identifiers={(DOMAIN, self._control_device_identifier(address))}
         )
 
     def address_for_device(self, device: dr.DeviceEntry) -> int | None:
@@ -162,9 +159,9 @@ class LunatoneHub:
             self.devices[device.address] = device
 
         registry = dr.async_get(self.hass)
-        registry.async_get_or_create(
+        self._gateway_device_id = registry.async_get_or_create(
             config_entry_id=self.entry.entry_id, **self.gateway_device_info
-        )
+        ).id
         for address in self.devices:
             self._register_device(address)
 
@@ -259,9 +256,18 @@ class LunatoneHub:
         return f"{self.unique_id}_cd{address}"
 
     def _register_device(self, address: int) -> str:
-        device = dr.async_get(self.hass).async_get_or_create(
-            config_entry_id=self.entry.entry_id, **self.control_device_info(address)
+        registry = dr.async_get(self.hass)
+        device = registry.async_get_or_create(
+            config_entry_id=self.entry.entry_id,
+            identifiers={(DOMAIN, self._control_device_identifier(address))},
+            manufacturer="DALI-2",
+            model="Input device",
+            name=f"DALI input device A{address}",
         )
+        if device.via_device_id != self._gateway_device_id:
+            registry.async_update_device(
+                device.id, via_device_id=self._gateway_device_id
+            )
         self._device_ids[address] = device.id
         return device.id
 

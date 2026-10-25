@@ -14,7 +14,7 @@ from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
 
-from .conftest import SERIAL
+from .conftest import SERIAL, get_device
 from .fake_gateway import FakeGateway
 
 
@@ -41,16 +41,14 @@ async def test_setup_scans_bus(
     """The first setup finds the control devices and their buttons."""
     assert setup_integration.state is ConfigEntryState.LOADED
 
-    gateway = device_registry.async_get_device(identifiers={(DOMAIN, SERIAL)})
+    gateway = get_device(device_registry, SERIAL)
     assert gateway is not None
     assert gateway.name == "Lunatone Dali WLAN"
     assert gateway.serial_number == SERIAL
     assert gateway.sw_version == "1.1.2/1.0.10"
 
     for address in range(4):
-        device = device_registry.async_get_device(
-            identifiers={(DOMAIN, f"{SERIAL}_cd{address}")}
-        )
+        device = get_device(device_registry, f"{SERIAL}_cd{address}")
         assert device is not None
         assert device.name == f"DALI input device A{address}"
         assert device.via_device_id == gateway.id
@@ -117,7 +115,7 @@ async def test_button_event(
 
     state = hass.states.get("event.dali_input_device_a2_button_3")
     assert state.attributes["event_type"] == "double_press"
-    device = device_registry.async_get_device(identifiers={(DOMAIN, f"{SERIAL}_cd2")})
+    device = get_device(device_registry, f"{SERIAL}_cd2")
     assert buttons[0].data == {
         "gateway": SERIAL,
         "device_id": device.id,
@@ -177,7 +175,7 @@ async def test_unknown_device_is_added(
     """Events from unknown devices add the device and its button."""
     await _push(hass, fake_gateway, [0x14, 0x84, 0x02])
     await hass.async_block_till_done()
-    assert device_registry.async_get_device(identifiers={(DOMAIN, f"{SERIAL}_cd10")})
+    assert get_device(device_registry, f"{SERIAL}_cd10")
     state = hass.states.get("event.dali_input_device_a10_button_1")
     assert state is not None
 
@@ -231,8 +229,8 @@ async def test_remove_device(
     """Control devices can be removed, the gateway cannot."""
     assert await async_setup_component(hass, "config", {})
     hub = setup_integration.runtime_data
-    device = device_registry.async_get_device(identifiers={(DOMAIN, f"{SERIAL}_cd1")})
-    gateway = device_registry.async_get_device(identifiers={(DOMAIN, SERIAL)})
+    device = get_device(device_registry, f"{SERIAL}_cd1")
+    gateway = get_device(device_registry, SERIAL)
     from custom_components.lunatone_wlan import async_remove_config_entry_device
 
     assert not await async_remove_config_entry_device(hass, setup_integration, gateway)

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from homeassistant.const import CONF_HOST, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -38,6 +38,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: LunatoneConfigEntry) -> 
     await hub.async_setup()
     entry.runtime_data = hub
     entry.async_create_background_task(hass, gateway.run(), f"{DOMAIN} {host}")
+
+    async def close_on_stop(event: Event) -> None:
+        await gateway.close()
+
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_on_stop)
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

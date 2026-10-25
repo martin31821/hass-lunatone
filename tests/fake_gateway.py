@@ -62,6 +62,8 @@ class FakeGateway:
     clients: list[web.WebSocketResponse] = field(default_factory=list)
     ack_result: int = 0
     respond: bool = True
+    answer_pings: bool = True
+    pongs: list[bytes] = field(default_factory=list)
     host: str = ""
     _runner: web.AppRunner | None = None
     _counter: int = 0
@@ -96,6 +98,11 @@ class FakeGateway:
         """Drop all client connections."""
         for ws in list(self.clients):
             await ws.close()
+
+    async def ping_clients(self, data: bytes) -> None:
+        """Ping all clients like the gateway does every 5 seconds."""
+        for ws in list(self.clients):
+            await ws.ping(data)
 
     async def push_monitor(self, data: list[int]) -> None:
         """Send a frame seen on the bus to all clients."""
@@ -140,12 +147,14 @@ class FakeGateway:
         }.get(data[2])
 
     async def _handle(self, request: web.Request) -> web.WebSocketResponse:
-        ws = web.WebSocketResponse()
+        ws = web.WebSocketResponse(autoping=self.answer_pings)
         await ws.prepare(request)
         self.clients.append(ws)
         await ws.send_json(INFO)
         try:
             async for message in ws:
+                if message.type is WSMsgType.PONG:
+                    self.pongs.append(message.data)
                 if message.type is not WSMsgType.TEXT:
                     continue
                 payload = message.json()

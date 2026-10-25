@@ -10,6 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.lunatone_wlan.const import DOMAIN
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
 from .fake_gateway import FakeGateway, FakeInstance
 
@@ -69,3 +70,11 @@ async def setup_integration(
         await scan
     await hass.async_block_till_done()
     return config_entry
+
+
+def get_device(
+    device_registry: dr.DeviceRegistry, identifier: str
+) -> dr.DeviceEntry | None:
+    """Return the device with an identifier of this integration."""
+    devices = device_registry.async_get_devices(identifiers={(DOMAIN, identifier)})
+    return devices[0] if devices else None

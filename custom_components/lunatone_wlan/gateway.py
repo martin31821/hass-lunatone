@@ -15,7 +15,9 @@ _LOGGER = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 10
 REQUEST_TIMEOUT = 5
-HEARTBEAT = 30
+# The gateway pings every 5 s. After IDLE_TIMEOUT without any message we ping
+# it ourselves and give up after another IDLE_TIMEOUT.
+IDLE_TIMEOUT = 15
 RECONNECT_DELAYS = (1, 2, 5, 10, 30)
 
 # daliAnswer result when an 8-bit backward frame was received, 0 means no answer
@@ -84,12 +86,16 @@ class LunatoneGateway:
         try:
             async with asyncio.timeout(CONNECT_TIMEOUT):
                 ws = await self._session.ws_connect(
-                    f"ws://{self.host}/", heartbeat=HEARTBEAT
+                    f"ws://{self.host}/", autoping=False
                 )
                 while True:
-                    message = await ws.receive_json()
-                    if message.get("type") == "info":
-                        self.info = message.get("data") or {}
+                    message = await ws.receive()
+                    if message.type is aiohttp.WSMsgType.PING:
+                        await ws.pong(message.data)
+                        continue
+                    payload = json.loads(message.data)
+                    if payload.get("type") == "info":
+                        self.info = payload.get("data") or {}
                         break
                 await ws.send_json(
                     {"type": "filtering", "data": {"ping": True, "group": True}}
@@ -195,8 +201,19 @@ class LunatoneGateway:
     async def _read_loop(self) -> None:
         ws = self._ws
         assert ws is not None
+        pinged = False
         try:
-            async for message in ws:
+            while True:
+                try:
+                    message = await ws.receive(timeout=IDLE_TIMEOUT)
+                except TimeoutError:
+                    if pinged:
+                        _LOGGER.debug("Gateway at %s stopped responding", self.host)
+                        break
+                    pinged = True
+                    await ws.ping()
+                    continue
+                pinged = False
                 if message.type is aiohttp.WSMsgType.TEXT:
                     try:
                         payload = json.loads(message.data)
@@ -204,9 +221,18 @@ class LunatoneGateway:
                         _LOGGER.debug("Ignoring invalid message %s", message.data)
                         continue
                     self._handle_message(payload)
-                elif message.type is aiohttp.WSMsgType.ERROR:
-                    _LOGGER.debug("Websocket error: %s", ws.exception())
+                elif message.type is aiohttp.WSMsgType.PING:
+                    await ws.pong(message.data)
+                elif message.type in (
+                    aiohttp.WSMsgType.CLOSE,
+                    aiohttp.WSMsgType.CLOSING,
+                    aiohttp.WSMsgType.CLOSED,
+                    aiohttp.WSMsgType.ERROR,
+                ):
+                    _LOGGER.debug("Websocket closed: %s", ws.exception())
                     break
+        except (aiohttp.ClientError, ConnectionResetError) as err:
+            _LOGGER.debug("Websocket error: %s", err)
         finally:
             await ws.close()
             self._ws = None
