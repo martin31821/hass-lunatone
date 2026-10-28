@@ -10,7 +10,50 @@ from typing import Any
 BROADCAST = 0xFF
 
 # IEC 62386-102 control gear commands (16-bit forward frames)
+CMD_OFF = 0x00
+CMD_RECALL_MAX_LEVEL = 0x05
 CMD_GO_TO_SCENE = 0x10
+# Commands 0x00-0x1F change the light level, higher ones configure or query
+MAX_LEVEL_COMMAND = 0x1F
+
+# IEC 62386-102 control gear queries
+QUERY_STATUS = 0x90
+QUERY_CONTROL_GEAR_PRESENT = 0x91
+QUERY_DEVICE_TYPE = 0x99
+QUERY_ACTUAL_LEVEL = 0xA0
+QUERY_MAX_LEVEL = 0xA1
+QUERY_MIN_LEVEL = 0xA2
+QUERY_NEXT_DEVICE_TYPE = 0xA7
+QUERY_GROUPS_0_7 = 0xC0
+QUERY_GROUPS_8_15 = 0xC1
+
+# QUERY STATUS bits
+STATUS_GEAR_FAILURE = 0x01
+STATUS_LAMP_FAILURE = 0x02
+STATUS_FADE_RUNNING = 0x10
+
+# QUERY DEVICE TYPE answers besides a device type
+DEVICE_TYPE_MULTIPLE = 0xFF
+DEVICE_TYPE_NONE = 0xFE
+
+DEVICE_TYPE_SWITCHING = 7
+
+DEVICE_TYPE_NAMES = {
+    0: "Fluorescent lamp",
+    1: "Emergency lighting",
+    2: "Discharge lamp",
+    3: "Low voltage halogen lamp",
+    4: "Incandescent lamp dimmer",
+    5: "1-10 V converter",
+    6: "LED module",
+    DEVICE_TYPE_SWITCHING: "Switching function",
+    8: "Colour control",
+}
+
+MIN_ARC_LEVEL = 1
+MAX_ARC_LEVEL = 254
+# Answered by QUERY ACTUAL LEVEL while the level is unknown
+MASK = 0xFF
 
 # IEC 62386-103 device commands (24-bit forward frames, instance byte 0xFE)
 INSTANCE_BYTE_DEVICE = 0xFE
@@ -138,6 +181,18 @@ def group_address(group: int) -> int:
     return 0x80 | (group << 1) | 1
 
 
+def direct_arc_power(address: int, level: int) -> list[int]:
+    """Return a DIRECT ARC POWER frame setting a control gear's level."""
+    if not 0 <= level <= MAX_ARC_LEVEL:
+        raise ValueError(f"Level {level} out of range 0-{MAX_ARC_LEVEL}")
+    return [short_address(address) & 0xFE, level]
+
+
+def gear_command(address: int, opcode: int) -> list[int]:
+    """Return a 16-bit command for a control gear."""
+    return [short_address(address), opcode]
+
+
 def go_to_scene(address_byte: int, scene: int) -> list[int]:
     """Return a GO TO SCENE frame."""
     if not 0 <= scene <= MAX_SCENE:
@@ -228,6 +283,19 @@ def _gear_target(address_byte: int) -> dict[str, Any] | None:
     if address_byte < 0xA0:
         return {"target": "group", "group": (address_byte >> 1) & 0x0F}
     return None
+
+
+def level_command_target(data: Sequence[int]) -> dict[str, Any] | None:
+    """Return the target of a 16-bit frame that changes light levels."""
+    if len(data) != 2:
+        return None
+    address_byte, opcode = data
+    target = _gear_target(address_byte)
+    if target is None or target["target"] == "broadcast_unaddressed":
+        return None
+    if address_byte & 0x01 and opcode > MAX_LEVEL_COMMAND:
+        return None
+    return target
 
 
 def describe_frame(bits: int, data: Sequence[int]) -> dict[str, Any]:

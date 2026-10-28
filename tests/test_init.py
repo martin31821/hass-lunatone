@@ -74,7 +74,7 @@ async def test_setup_scans_bus(
                 entity_registry, setup_integration.entry_id
             )
         )
-        == 18
+        == 25
     )
 
 

@@ -150,7 +150,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def scan_bus_service(call: ServiceCall) -> ServiceResponse:
         hub = _get_hub(hass, call)
         try:
-            return {"devices": await hub.async_scan()}
+            return await hub.async_scan()
         except GatewayError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

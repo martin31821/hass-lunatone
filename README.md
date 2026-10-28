@@ -15,13 +15,20 @@ integration.
   get *Occupancy* and *Movement* binary sensors, light sensors (IEC 62386-304)
   an *Illuminance* sensor in lux. Both come with the standard Home Assistant
   device triggers and conditions. Tested with the Lunatone DALI-2 CS Mini.
+- **Lights.** Every control gear (LED driver, dimmer, relay, ...) on the bus
+  becomes a dimmable light. Brightness is sent as direct arc power, turning on
+  restores the last level. Scenes, group and broadcast commands sent by
+  buttons or other software are noticed on the bus and the affected lights
+  are read again once their fade has finished.
+- **Group lights.** Every DALI group with gear gets a light that sends one
+  group command, so all its lights fade together.
 - **Scenes as a service.** `lunatone_wlan.go_to_scene` recalls a scene on all
   lights, a group or a single address.
 - **Bus monitor.** Every frame on the bus is fired as a `lunatone_wlan_monitor`
   event, including the scene commands buttons send directly to the lights.
 - **Raw frames.** `lunatone_wlan.send_frame` sends any 16 or 24-bit frame and
   returns the answer.
-- **Bus scan.** Control devices are found on every start. Use the *Scan bus*
+- **Bus scan.** Control devices and control gear are found on every start. Use the *Scan bus*
   button or `lunatone_wlan.scan_bus` after adding or re-addressing devices.
   When an address now holds a different device, its entities are replaced.
 
@@ -50,6 +57,32 @@ gateway's IP address.
 The gateway accepts at most three websocket clients at a time. The Lunatone
 software and the gateway's web page each use one. Close them when you are
 done, otherwise Home Assistant may be refused after a reconnect.
+
+## Lights
+
+Each control gear gets a device *DALI light A<n>* with one light entity. Its
+attributes show the short `address`, the `groups` it belongs to, the raw arc
+`level` (0–254) and `lamp_failure` from the gear status. Colour control
+(DT8) is not supported yet, such gear is dimmed like any other.
+
+- Brightness 1–255 maps linearly to arc levels 1–254. DALI arc levels are
+  logarithmic, so half brightness is about 3 % light output, which looks
+  like an even step to the eye. The gear limits levels to its min and max.
+- Light levels are read after every level command on the bus, and every
+  60 seconds. The poll notices gear switched at the mains: gear that does
+  not answer is shown as unavailable.
+- Group membership is read during the scan. Press *Scan bus* after changing
+  groups, otherwise group commands update the wrong lights.
+- Gear that does not answer during a scan is kept. Remove its device in Home
+  Assistant if it is gone for good.
+
+Each group with at least one gear gets a device *DALI group <n>* with one
+light, so you can assign groups to areas. Commands go to the group address,
+so every member fades at the same time. The group is on while any member is
+on, and its brightness is the mean of the members that are on. Turning it on
+without brightness restores that mean, or the members' max level the first
+time. Its `entity_id` attribute lists the member lights. A group light is
+removed when a scan finds the group empty.
 
 ## Configuring the MC2 inputs
 

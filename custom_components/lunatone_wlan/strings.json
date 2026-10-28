@@ -159,7 +159,7 @@
     },
     "scan_bus": {
       "name": "Scan bus",
-      "description": "Search the bus for DALI-2 control devices and their input instances.",
+      "description": "Search the bus for DALI-2 control devices with their input instances, and for control gear (lights).",
       "fields": {
         "config_entry_id": {
           "name": "Gateway",

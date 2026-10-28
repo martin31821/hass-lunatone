@@ -15,11 +15,14 @@ from custom_components.lunatone_wlan.dali import (
     OccupancyState,
     describe_frame,
     device_command,
+    direct_arc_power,
+    gear_command,
     go_to_scene,
     group_address,
     input_value,
     input_value_bytes,
     instance_command,
+    level_command_target,
     occupancy_from_input_value,
     parse_input_event,
     parse_occupancy_info,
@@ -270,3 +273,33 @@ def test_input_value(data: list[int], resolution: int, value: int) -> None:
     """Input value bytes are combined MSB first."""
     assert input_value(data, resolution) == value
     assert input_value_bytes(resolution) == len(data)
+
+
+def test_gear_frames() -> None:
+    """Direct arc power clears the selector bit, commands set it."""
+    assert direct_arc_power(3, 128) == [6, 128]
+    assert gear_command(3, 0x00) == [7, 0]
+    with pytest.raises(ValueError):
+        direct_arc_power(3, 255)
+
+
+@pytest.mark.parametrize(
+    ("frame", "target"),
+    [
+        ([0x81, 0x11], {"target": "group", "group": 0}),
+        ([0x8D, 0x12], {"target": "group", "group": 6}),
+        ([0xFF, 0x00], {"target": "broadcast"}),
+        ([0xFE, 0x80], {"target": "broadcast"}),
+        ([0x06, 0x80], {"target": "address", "address": 3}),
+        ([0x07, 0x05], {"target": "address", "address": 3}),
+        # Queries, configuration and special commands keep the level
+        ([0x07, 0xA0], None),
+        ([0x07, 0x2A], None),
+        ([0xC1, 0x08], None),
+        ([0xFD, 0x00], None),
+        ([0x07, 0xFE, 0x35], None),
+    ],
+)
+def test_level_command_target(frame: list[int], target: dict | None) -> None:
+    """Only frames that change light levels have a target."""
+    assert level_command_target(frame) == target

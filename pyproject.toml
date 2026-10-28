@@ -1,6 +1,6 @@
 [project]
 name = "hass-lunatone"
-version = "0.2.0"
+version = "0.3.0"
 description = "Home Assistant integration for the Lunatone DALI WLAN gateway"
 requires-python = ">=3.14"
 

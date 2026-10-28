@@ -8,11 +8,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.lunatone_wlan.const import DOMAIN
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
-from .fake_gateway import FakeGateway, FakeInstance, cs_mini
+from .fake_gateway import FakeGateway, FakeGear, FakeInstance, cs_mini
 
 SERIAL = "123456789012"
 
@@ -42,7 +43,12 @@ async def fake_gateway() -> AsyncGenerator[FakeGateway]:
             ],
             3: [FakeInstance(), FakeInstance(enabled=False, event_scheme=0)],
             5: cs_mini(),
-        }
+        },
+        gear={
+            0: FakeGear(device_types=[4], groups=0b101, scenes={0: 254, 1: 40}),
+            1: FakeGear(max_level=246, groups=0b1001, scenes={0: 254, 1: 80}),
+            16: FakeGear(device_types=[6, 8], status=0x03, groups=1 << 5),
+        },
     )
     await gateway.start()
     yield gateway
@@ -63,14 +69,20 @@ def config_entry(fake_gateway: FakeGateway) -> MockConfigEntry:
 @pytest.fixture
 async def setup_integration(
     hass: HomeAssistant, config_entry: MockConfigEntry
-) -> MockConfigEntry:
-    """Set up the integration and wait for the initial bus scan."""
+) -> AsyncGenerator[MockConfigEntry]:
+    """Set up the integration and wait for the initial bus scan.
+
+    The entry is unloaded before the fake gateway stops, so the client does
+    not reconnect while the server shuts down.
+    """
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     if (scan := config_entry.runtime_data.initial_scan) is not None:
         await scan
     await hass.async_block_till_done()
-    return config_entry
+    yield config_entry
+    if config_entry.state is ConfigEntryState.LOADED:
+        await hass.config_entries.async_unload(config_entry.entry_id)
 
 
 def get_device(

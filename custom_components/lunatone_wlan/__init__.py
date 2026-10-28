@@ -14,7 +14,13 @@ from .gateway import GatewayConnectionError, LunatoneGateway
 from .hub import LunatoneConfigEntry, LunatoneHub
 from .services import async_setup_services
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.EVENT, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.EVENT,
+    Platform.LIGHT,
+    Platform.SENSOR,
+]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -65,9 +71,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: LunatoneConfigEntry) ->
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: LunatoneConfigEntry, device: dr.DeviceEntry
 ) -> bool:
-    """Allow removing control devices, they come back with the next scan."""
+    """Allow removing control devices and gear, they come back with the next scan."""
     hub = entry.runtime_data
-    if (address := hub.address_for_device(device)) is None:
-        return False
-    hub.async_remove_device(address)
-    return True
+    if (address := hub.address_for_device(device)) is not None:
+        hub.async_remove_device(address)
+        return True
+    if (address := hub.gear_address_for_device(device)) is not None:
+        hub.async_remove_gear(address)
+        return True
+    return False
